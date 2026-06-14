@@ -1,0 +1,46 @@
+## 用户服务 RPC - 开发环境
+
+# =============================================
+# 构建阶段
+# =============================================
+FROM golang:1.26-alpine AS builder
+
+ENV GOPROXY=https://goproxy.cn,direct
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+
+WORKDIR /build
+
+# 先复制依赖文件，利用 Docker 缓存层
+COPY go.mod go.sum ./
+RUN go mod download
+
+# 复制源码并编译
+COPY . .
+RUN go build -o user-rpc ./apps/user/rpc/
+
+# =============================================
+# 运行阶段
+# =============================================
+FROM alpine:3.18
+
+# 替换为阿里云镜像源
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk update && \
+    apk --no-cache add tzdata ca-certificates && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone
+
+ENV TZ=Asia/Shanghai
+
+WORKDIR /app
+
+# 从构建阶段复制二进制
+COPY --from=builder /build/user-rpc .
+
+# 复制配置文件 (与 user.go 中默认 -f "etc/user.yaml" 对应)
+COPY apps/user/rpc/etc/user.yaml etc/user.yaml
+
+EXPOSE 8080
+
+ENTRYPOINT ["./user-rpc", "-f", "etc/user.yaml"]
