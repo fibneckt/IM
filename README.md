@@ -204,3 +204,8 @@ func (l *FindUserLogic) FindUser(in *user.FindUserReq) (*user.FindUserResp, erro
 
 ## 社区功能
 
+### 好友申请
+
+### 好友申请处理
+
+### 好友列表处理
