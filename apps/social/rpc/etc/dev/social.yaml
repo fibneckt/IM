@@ -1,12 +1,12 @@
 Name: social.rpc
-ListenOn: 127.0.0.1:8081
+ListenOn: 0.0.0.0:10001
 Etcd:
   Hosts:
   - 127.0.0.1:2379
   Key: social.rpc
 
 Mysql:
-  DataSource: root:@tcp(127.0.0.1:3306)/im?charset=utf8mb4
+  DataSource: root:@tcp(127.0.0.1:3306)/im?charset=utf8mb4&loc=UTC
 
 Cache:
   # redis

@@ -1,12 +1,12 @@
 Name: user.rpc
-ListenOn: 0.0.0.0:8080
+ListenOn: 0.0.0.0:10000
 Etcd:
    Hosts:
    - 127.0.0.1:2379
    Key: user.rpc
 
 Mysql:
-  DataSource: root:@tcp(127.0.0.1:3306)/im?charset=utf8mb4
+  DataSource: root:@tcp(127.0.0.1:3306)/im?charset=utf8mb4&loc=UTC
 
 Cache:
   # redis

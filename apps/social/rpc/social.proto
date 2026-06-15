@@ -112,7 +112,9 @@ message GroupPutinReq {
   string inviterUid = 7;
 }
 
-message GroupPutinResp {}
+message GroupPutinResp {
+  string groupOd = 1;
+}
 
 message GroupPutinListReq {
   string groupId = 1;

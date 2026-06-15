@@ -29,7 +29,7 @@ func NewFriendListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Friend
 func (l *FriendListLogic) FriendList(in *social.FriendListReq) (*social.FriendListResp, error) {
 	// todo: add your logic here and delete this line
 
-	friendsList, err := l.svcCtx.FriendsModel.ListByUserId(l.ctx, in.UserId)
+	friendsList, err := l.svcCtx.FriendsModel.ListByUserid(l.ctx, in.UserId)
 	if err != nil {
 		return nil, errors.Wrapf(xerr.NewDBErr(), "list friend by uid err %v req %v", err, in.UserId)
 	}

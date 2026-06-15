@@ -1,10 +1,9 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package group
 
 import (
 	"context"
+	"IM/apps/social/rpc/socialclient"
+	"IM/pkg/ctxdata"
 
 	"IM/apps/social/api/internal/svc"
 	"IM/apps/social/api/internal/types"
@@ -18,7 +17,6 @@ type GroupPutInLogic struct {
 	svcCtx *svc.ServiceContext
 }
 
-// 申请进群
 func NewGroupPutInLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GroupPutInLogic {
 	return &GroupPutInLogic{
 		Logger: logx.WithContext(ctx),
@@ -29,6 +27,14 @@ func NewGroupPutInLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GroupP
 
 func (l *GroupPutInLogic) GroupPutIn(req *types.GroupPutInRep) (resp *types.GroupPutInResp, err error) {
 	// todo: add your logic here and delete this line
+	uid := ctxdata.GetUid(l.ctx)
 
+	_, err = l.svcCtx.Social.GroupPutin(l.ctx, &socialclient.GroupPutinReq{
+		GroupId:    req.GroupId,
+		ReqId:      uid,
+		ReqMsg:     req.ReqMsg,
+		ReqTime:    req.ReqTime,
+		JoinSource: int32(req.JoinSource),
+	})
 	return
 }

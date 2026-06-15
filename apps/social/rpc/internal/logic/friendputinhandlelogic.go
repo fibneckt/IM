@@ -37,7 +37,7 @@ func (l *FriendPutInHandleLogic) FriendPutInHandle(in *social.FriendPutInHandleR
 	// todo: add your logic here and delete this line
 
 	// 获取好友申请记录
-	friendReq, err := l.svcCtx.FriendRequestsModel.FindOne(l.ctx, uint64(in.FriendReqId))
+	friendReq, err := l.svcCtx.FriendRequestsModel.FindOne(l.ctx, int64(in.FriendReqId))
 	if err != nil {
 		return nil, errors.Wrapf(xerr.NewDBErr(), "friend friendsRequest by friendReqId err %v req %v", err, in.FriendReqId)
 	}

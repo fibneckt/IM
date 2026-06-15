@@ -1,10 +1,9 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package group
 
 import (
 	"context"
+	"github.com/jinzhu/copier"
+	"IM/apps/social/rpc/socialclient"
 
 	"IM/apps/social/api/internal/svc"
 	"IM/apps/social/api/internal/types"
@@ -18,7 +17,6 @@ type GroupPutInListLogic struct {
 	svcCtx *svc.ServiceContext
 }
 
-// 申请进群列表
 func NewGroupPutInListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GroupPutInListLogic {
 	return &GroupPutInListLogic{
 		Logger: logx.WithContext(ctx),
@@ -30,5 +28,12 @@ func NewGroupPutInListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Gr
 func (l *GroupPutInListLogic) GroupPutInList(req *types.GroupPutInListRep) (resp *types.GroupPutInListResp, err error) {
 	// todo: add your logic here and delete this line
 
-	return
+	list, err := l.svcCtx.Social.GroupPutinList(l.ctx, &socialclient.GroupPutinListReq{
+		GroupId: req.GroupId,
+	})
+
+	var respList []*types.GroupRequests
+	copier.Copy(&respList, list.List)
+
+	return &types.GroupPutInListResp{List: respList}, nil
 }
