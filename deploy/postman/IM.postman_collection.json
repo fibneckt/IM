@@ -1,0 +1,517 @@
+{
+	"info": {
+		"_postman_id": "im-test-collection",
+		"name": "IM 服务测试",
+		"description": "IM 项目全部 API 测试用例，覆盖 user 和 social 两个服务",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "user_api",
+			"value": "http://127.0.0.1:8080",
+			"type": "string"
+		},
+		{
+			"key": "social_api",
+			"value": "http://127.0.0.1:8081",
+			"type": "string"
+		},
+		{
+			"key": "token_a",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "token_b",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "group_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_a_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_b_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "01-User",
+			"description": "用户服务：注册、登录、查询用户信息",
+			"item": [
+				{
+					"name": "01-注册用户A",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var json = pm.response.json();",
+									"if (json && json.token) {",
+									"    pm.collectionVariables.set('token_a', json.token);",
+									"}",
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Has token', () => pm.expect(json.token).to.be.a('string'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"id\": \"\",\n    \"mobile\": \"13800000001\",\n    \"nickname\": \"张三\",\n    \"password\": \"123456\",\n    \"avatar\": \"\",\n    \"sex\": 1\n}"
+						},
+						"url": {
+							"raw": "{{user_api}}/v1/user/register",
+							"host": ["{{user_api}}"],
+							"path": ["v1", "user", "register"]
+						}
+					}
+				},
+				{
+					"name": "02-注册用户B",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var json = pm.response.json();",
+									"if (json && json.token) {",
+									"    pm.collectionVariables.set('token_b', json.token);",
+									"}",
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Has token', () => pm.expect(json.token).to.be.a('string'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"id\": \"\",\n    \"mobile\": \"13800000002\",\n    \"nickname\": \"李四\",\n    \"password\": \"123456\",\n    \"avatar\": \"\",\n    \"sex\": 0\n}"
+						},
+						"url": {
+							"raw": "{{user_api}}/v1/user/register",
+							"host": ["{{user_api}}"],
+							"path": ["v1", "user", "register"]
+						}
+					}
+				},
+				{
+					"name": "03-登录用户A",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var json = pm.response.json();",
+									"if (json && json.token) {",
+									"    pm.collectionVariables.set('token_a', json.token);",
+									"}",
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Has token', () => pm.expect(json.token).to.be.a('string'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone\": \"13800000001\",\n    \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{user_api}}/v1/user/login",
+							"host": ["{{user_api}}"],
+							"path": ["v1", "user", "login"]
+						}
+					}
+				},
+				{
+					"name": "04-登录用户B",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var json = pm.response.json();",
+									"if (json && json.token) {",
+									"    pm.collectionVariables.set('token_b', json.token);",
+									"}",
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Has token', () => pm.expect(json.token).to.be.a('string'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone\": \"13800000002\",\n    \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{user_api}}/v1/user/login",
+							"host": ["{{user_api}}"],
+							"path": ["v1", "user", "login"]
+						}
+					}
+				},
+				{
+					"name": "05-获取用户A信息",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_a}}" }
+						],
+						"url": {
+							"raw": "{{user_api}}/v1/user/user",
+							"host": ["{{user_api}}"],
+							"path": ["v1", "user", "user"]
+						}
+					}
+				},
+				{
+					"name": "06-获取用户B信息",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_b}}" }
+						],
+						"url": {
+							"raw": "{{user_api}}/v1/user/user",
+							"host": ["{{user_api}}"],
+							"path": ["v1", "user", "user"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "02-Group",
+			"description": "群组业务：创建群、申请加群、处理申请、群列表、群成员",
+			"item": [
+				{
+					"name": "01-用户A创建群",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var json = pm.response.json();",
+									"if (json && json.id) {",
+									"    pm.collectionVariables.set('group_id', json.id);",
+									"}",
+									"pm.test('Status 200', () => pm.response.to.have.status(200));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token_a}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"测试群聊\",\n    \"icon\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{social_api}}/v1/social/group",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "group"]
+						}
+					}
+				},
+				{
+					"name": "02-用户B申请加群",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token_b}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"group_id\": \"{{group_id}}\",\n    \"req_msg\": \"我想加入\",\n    \"req_time\": 1780000000,\n    \"join_source\": 1\n}"
+						},
+						"url": {
+							"raw": "{{social_api}}/v1/social/group/putIn",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "group", "putIn"]
+						}
+					}
+				},
+				{
+					"name": "03-用户A查看加群申请列表",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_a}}" }
+						],
+						"url": {
+							"raw": "{{social_api}}/v1/social/group/putIns?group_id={{group_id}}",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "group", "putIns"],
+							"query": [
+								{ "key": "group_id", "value": "{{group_id}}" }
+							]
+						}
+					}
+				},
+				{
+					"name": "04-用户A处理加群申请（通过）",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token_a}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"group_id\": \"{{group_id}}\",\n    \"group_req_id\": 1,\n    \"handle_result\": 1\n}"
+						},
+						"url": {
+							"raw": "{{social_api}}/v1/social/group/putIn",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "group", "putIn"]
+						}
+					}
+				},
+				{
+					"name": "05-查看群成员列表",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_a}}" }
+						],
+						"url": {
+							"raw": "{{social_api}}/v1/social/group/users?group_id={{group_id}}",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "group", "users"],
+							"query": [
+								{ "key": "group_id", "value": "{{group_id}}" }
+							]
+						}
+					}
+				},
+				{
+					"name": "06-查看用户的群列表",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_a}}" }
+						],
+						"url": {
+							"raw": "{{social_api}}/v1/social/groups",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "groups"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "03-Friend",
+			"description": "好友业务：添加好友、处理申请、好友列表",
+			"item": [
+				{
+					"name": "01-用户A向用户B发送好友申请",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token_a}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user_uid\": \"0x0000000000000001\",\n    \"req_msg\": \"你好，加个好友\",\n    \"req_time\": 1780000000\n}"
+						},
+						"url": {
+							"raw": "{{social_api}}/v1/social/friend/putIn",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "friend", "putIn"]
+						}
+					}
+				},
+				{
+					"name": "02-用户B查看好友申请列表",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_b}}" }
+						],
+						"url": {
+							"raw": "{{social_api}}/v1/social/friend/putIns",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "friend", "putIns"]
+						}
+					}
+				},
+				{
+					"name": "03-用户B处理好友申请（通过）",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token_b}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"friend_req_id\": 1,\n    \"handle_result\": 1\n}"
+						},
+						"url": {
+							"raw": "{{social_api}}/v1/social/friend/putIn",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "friend", "putIn"]
+						}
+					}
+				},
+				{
+					"name": "04-用户A查看好友列表",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_a}}" }
+						],
+						"url": {
+							"raw": "{{social_api}}/v1/social/friends",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "friends"]
+						}
+					}
+				},
+				{
+					"name": "05-用户B查看好友列表",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_b}}" }
+						],
+						"url": {
+							"raw": "{{social_api}}/v1/social/friends",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "friends"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "04-Friend-Reject",
+			"description": "好友拒绝：申请被拒绝的场景",
+			"item": [
+				{
+					"name": "01-用户A向用户B发送好友申请",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token_a}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user_uid\": \"0x0000000000000001\",\n    \"req_msg\": \"你好\",\n    \"req_time\": 1780000000\n}"
+						},
+						"url": {
+							"raw": "{{social_api}}/v1/social/friend/putIn",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "friend", "putIn"]
+						}
+					}
+				},
+				{
+					"name": "02-用户B拒绝好友申请",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token_b}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"friend_req_id\": 1,\n    \"handle_result\": 2\n}"
+						},
+						"url": {
+							"raw": "{{social_api}}/v1/social/friend/putIn",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "friend", "putIn"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "05-Group-Reject",
+			"description": "加群拒绝：申请被拒绝的场景",
+			"item": [
+				{
+					"name": "01-用户B申请加群",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token_b}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"group_id\": \"{{group_id}}\",\n    \"req_msg\": \"我想加入\",\n    \"req_time\": 1780000000,\n    \"join_source\": 1\n}"
+						},
+						"url": {
+							"raw": "{{social_api}}/v1/social/group/putIn",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "group", "putIn"]
+						}
+					}
+				},
+				{
+					"name": "02-用户A拒绝加群申请",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token_a}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"group_id\": \"{{group_id}}\",\n    \"group_req_id\": 1,\n    \"handle_result\": 2\n}"
+						},
+						"url": {
+							"raw": "{{social_api}}/v1/social/group/putIn",
+							"host": ["{{social_api}}"],
+							"path": ["v1", "social", "group", "putIn"]
+						}
+					}
+				}
+			]
+		}
+	]
+}
