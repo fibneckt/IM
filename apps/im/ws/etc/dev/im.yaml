@@ -1,2 +1,2 @@
 Name: im.ws
-Listen: 0.0.0.0:10003
+ListenOn: 0.0.0.0:10003

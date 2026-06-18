@@ -15,6 +15,8 @@ type Server struct {
 	routers map[string]HandlerFunc // 路由
 	addr    string
 
+	patten string
+
 	sync.RWMutex                              // 加锁防止下面两个 map 并发出现的错误
 	connToUser     map[*websocket.Conn]string // 连接对应的 user
 	userToConn     map[string]*websocket.Conn // user 对应的连接
@@ -24,13 +26,17 @@ type Server struct {
 	logx.Logger
 }
 
-func NewServer(addr string) *Server {
+func NewServer(addr string, opts ...ServerOptions) *Server {
+	opt := newServerOptions(opts...)
+
 	return &Server{
 		routers:        make(map[string]HandlerFunc),
 		addr:           addr,
 		authentication: new(authentication),
 		userToConn:     make(map[string]*websocket.Conn),
 		connToUser:     make(map[*websocket.Conn]string),
+
+		patten: opt.patten,
 
 		upgrader: websocket.Upgrader{},
 		Logger:   logx.WithContext(context.Background()),
@@ -127,6 +133,14 @@ func (s *Server) ServerWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !s.authentication.Auth(w, r) {
+		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("不具备访问权限")))
+		return
+	}
+
+	// 记录连接
+	s.addConn(conn, r)
+
 	// 根据连接对象获取请求信息
 	// method
 	go s.handlerConn(conn)
@@ -166,11 +180,36 @@ func (s *Server) AddRoutes(rs []Route) {
 
 // 启动服务
 func (s *Server) Start() {
-	http.HandleFunc("/ws", s.ServerWs)
+	http.HandleFunc(s.patten, s.ServerWs)
 	s.Info(http.ListenAndServe(s.addr, nil))
 }
 
 // 停止服务
 func (s *Server) Stop() {
 	fmt.Println("server stop")
+}
+
+func (s *Server) SendByUserId(msg interface{}, sendIds ...string) error {
+	if len(sendIds) == 0 {
+		return nil
+	}
+
+	return s.Send(msg, s.GetConns(sendIds...)...)
+}
+
+func (s *Server) Send(msg interface{}, conns ...*websocket.Conn) error {
+	if len(conns) == 0 {
+		return nil
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	for _, conn := range conns {
+		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			return err
+		}
+	}
+	return nil
 }
