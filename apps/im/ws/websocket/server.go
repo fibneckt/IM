@@ -30,9 +30,10 @@ func NewServer(addr string, opts ...ServerOptions) *Server {
 	opt := newServerOptions(opts...)
 
 	return &Server{
-		routers:        make(map[string]HandlerFunc),
-		addr:           addr,
-		authentication: new(authentication),
+		routers: make(map[string]HandlerFunc),
+		addr:    addr,
+		// 头疼测试时用了 new(authentication) 写死了返回 true，用时间戳当 userId 的默认实现
+		authentication: opt.Authentication,
 		userToConn:     make(map[string]*websocket.Conn),
 		connToUser:     make(map[*websocket.Conn]string),
 

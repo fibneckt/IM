@@ -1,2 +1,5 @@
 Name: im.ws
 ListenOn: 0.0.0.0:10003
+
+JwtAuth:
+  AccessSecret: im.fibneckt

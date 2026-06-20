@@ -24,10 +24,11 @@ func main() {
 		panic(err)
 	}
 
-	srv := websocket.NewServer(c.ListenOn)
+	ctx := svc.NewServiceContext(c)
+	// 添加jwt 中间件
+	srv := websocket.NewServer(c.ListenOn, websocket.WithServerAuthentication(handler.NewJwtAuth(ctx)))
 	defer srv.Stop()
 
-	ctx := svc.NewServiceContext(c)
 	handler.RegisterHandlers(srv, ctx)
 
 	fmt.Println("start websocket server at ", c.ListenOn, "....")
