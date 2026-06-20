@@ -6,6 +6,7 @@ import (
 	"IM/apps/im/ws/internal/svc"
 	"IM/apps/im/ws/websocket"
 	"fmt"
+	"time"
 
 	"flag"
 
@@ -26,7 +27,10 @@ func main() {
 
 	ctx := svc.NewServiceContext(c)
 	// 添加jwt 中间件
-	srv := websocket.NewServer(c.ListenOn, websocket.WithServerAuthentication(handler.NewJwtAuth(ctx)))
+	srv := websocket.NewServer(c.ListenOn,
+		websocket.WithServerAuthentication(handler.NewJwtAuth(ctx)),
+		websocket.WithServerMaxConnectionIdle(10*time.Second),
+	)
 	defer srv.Stop()
 
 	handler.RegisterHandlers(srv, ctx)

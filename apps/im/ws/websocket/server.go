@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -24,6 +25,7 @@ type Server struct {
 
 	upgrader websocket.Upgrader
 	logx.Logger
+	opt *serverOption
 }
 
 func NewServer(addr string, opts ...ServerOptions) *Server {
@@ -32,6 +34,7 @@ func NewServer(addr string, opts ...ServerOptions) *Server {
 	return &Server{
 		routers: make(map[string]HandlerFunc),
 		addr:    addr,
+		opt:     &opt,
 		// 头疼测试时用了 new(authentication) 写死了返回 true，用时间戳当 userId 的默认实现
 		authentication: opt.Authentication,
 		userToConn:     make(map[string]*Conn),
@@ -51,6 +54,12 @@ func (s *Server) addConn(conn *Conn, req *http.Request) {
 	// 配置锁
 	s.RWMutex.Lock()
 	defer s.RWMutex.Unlock()
+
+	// 某些用户可能重复登录，这里进行验证
+	if c := s.userToConn[uid]; c != nil {
+		// 关闭之前的连接
+		c.Close()
+	}
 
 	s.connToUser[conn] = uid
 	s.userToConn[uid] = conn
@@ -110,10 +119,12 @@ func (s *Server) Close(conn *Conn) {
 	s.RWMutex.Lock()
 	defer s.RWMutex.Unlock()
 	uid := s.connToUser[conn]
-	if uid != "" {
-		// 已经被关闭
+	if uid == "" {
+		// 连接未注册，直接关闭
+		conn.Conn.Close()
 		return
 	}
+
 	delete(s.connToUser, conn)
 	delete(s.userToConn, uid)
 
@@ -132,14 +143,9 @@ func (s *Server) ServerWs(w http.ResponseWriter, r *http.Request) {
 	if conn == nil {
 		return
 	}
-	//conn, err := s.upgrader.Upgrade(w, r, nil)
-	//if err != nil {
-	//	s.Errorf("Upgrader err %v", err)
-	//	return
-	//}
 
 	if !s.authentication.Auth(w, r) {
-		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("不具备访问权限")))
+		s.Send(&Message{FrameType: FrameData, Data: fmt.Sprintf("不具备访问权限")}, conn)
 		conn.Close()
 		return
 	}
@@ -154,26 +160,40 @@ func (s *Server) ServerWs(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlerConn(conn *Conn) {
 	for {
-		// 获取请求消息
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			s.Errorf("websocket conn read message err %v", err)
-			// todo : turn off connect
+		// 设置读超时：10s 内没收到消息（包括 FramePing），主动断开
+		if err := conn.Conn.SetReadDeadline(time.Now().Add(s.opt.maxConnectionIdle)); err != nil {
+			s.Errorf("set read deadline err %v", err)
 			s.Close(conn)
 			return
 		}
-		var message Message
-		if err = json.Unmarshal(msg, &message); err != nil {
-			s.Errorf("json unmarshal err %v, msg %v", err, string(msg))
-			// todo : turn off connect
+
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			s.Errorf("websocket conn read message err %v", err)
+			s.Close(conn)
 			return
 		}
 
-		// 根据请求的 method 分发路由并执行
-		if handler, ok := s.routers[message.Method]; ok {
-			handler(s, conn, &message)
-		} else {
-			conn.WriteMessage(websocket.CloseMessage, []byte(fmt.Sprintf("不存在的执行方法 %v 请检查", message.Method)))
+		// 解析消息
+		var message Message
+		if err = json.Unmarshal(msg, &message); err != nil {
+			s.Errorf("json unmarshal err %v, msg %v", err, string(msg))
+			s.Close(conn)
+			return
+		}
+
+		// 根据消息类型进行处理
+		switch message.FrameType {
+		case FramePing:
+			// 心跳响应：收到 ping 回复 pong，同时读超时已被重置
+			s.Send(&Message{FrameType: FramePing}, conn)
+		case FrameData:
+			// 根据请求的 method 分发路由并执行
+			if handler, ok := s.routers[message.Method]; ok {
+				handler(s, conn, &message)
+			} else {
+				s.Send(&Message{FrameType: FrameData, Data: fmt.Sprintf("不存在执行的方法 %v 请检查", message.Method)}, conn)
+			}
 		}
 	}
 }

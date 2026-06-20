@@ -9,12 +9,12 @@ import (
 )
 
 type Conn struct {
-	idlemu sync.Mutex // 空闲操作的锁
+	idlemu sync.Mutex
 	*websocket.Conn
 	s    *Server
 	idle time.Time
 
-	maxConnections time.Duration
+	maxConnectionIdle time.Duration
 
 	done chan struct{}
 }
@@ -27,13 +27,14 @@ func NewConn(s *Server, w http.ResponseWriter, r *http.Request) *Conn {
 	}
 
 	conn := &Conn{
-		Conn:           c,
-		s:              s,
-		idle:           time.Now(),
-		maxConnections: defaultMaxConnectionIdle,
-		done:           make(chan struct{}),
+		Conn:              c,
+		s:                 s,
+		idle:              time.Now(),
+		maxConnectionIdle: s.opt.maxConnectionIdle,
+		done:              make(chan struct{}),
 	}
 
+	go conn.keepalive()
 	return conn
 }
 
@@ -42,13 +43,11 @@ func (c *Conn) ReadMessage() (messageType int, p []byte, err error) {
 
 	c.idlemu.Lock()
 	defer c.idlemu.Unlock()
-
-	c.idle = time.Time{}
+	c.idle = time.Now()
 	return
 }
 
 func (c *Conn) WriteMessage(messageType int, data []byte) error {
-	// 在这里第三方库协程并不安全
 	c.idlemu.Lock()
 	defer c.idlemu.Unlock()
 
@@ -68,30 +67,22 @@ func (c *Conn) Close() error {
 }
 
 func (c *Conn) keepalive() {
-	idleTimer := time.NewTimer(c.maxConnections)
-	defer func() {
-		idleTimer.Stop()
-	}()
+	ticker := time.NewTicker(c.maxConnectionIdle / 2)
+	defer ticker.Stop()
 
 	for {
 		select {
-		case <-idleTimer.C:
+		case <-c.done:
+			return
+		case <-ticker.C:
 			c.idlemu.Lock()
 			idle := c.idle
-			if idle.IsZero() { // The connection is non-idle.
-				c.idlemu.Unlock()
-				idleTimer.Reset(c.maxConnections)
-				continue
-			}
-			val := c.maxConnections - time.Since(idle)
 			c.idlemu.Unlock()
-			if val <= 0 {
-				// The connection has been idle for a duration of keepalive.MaxConnectionIdle or more.
-				// Gracefully close the connection.
+
+			if time.Since(idle) >= c.maxConnectionIdle {
 				c.s.Close(c)
 				return
 			}
-			idleTimer.Reset(val)
 		}
 	}
 }

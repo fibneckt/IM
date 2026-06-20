@@ -1,10 +1,7 @@
 package websocket
 
-import (
-	"math"
-	"time"
-)
+import "time"
 
 const (
-	defaultMaxConnectionIdle = time.Duration(math.MaxInt64)
+	defaultMaxConnectionIdle = 10 * time.Second
 )
