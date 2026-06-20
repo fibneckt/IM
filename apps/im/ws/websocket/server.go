@@ -17,9 +17,9 @@ type Server struct {
 
 	patten string
 
-	sync.RWMutex                              // 加锁防止下面两个 map 并发出现的错误
-	connToUser     map[*websocket.Conn]string // 连接对应的 user
-	userToConn     map[string]*websocket.Conn // user 对应的连接
+	sync.RWMutex                    // 加锁防止下面两个 map 并发出现的错误
+	connToUser     map[*Conn]string // 连接对应的 user
+	userToConn     map[string]*Conn // user 对应的连接
 	authentication Authentication
 
 	upgrader websocket.Upgrader
@@ -34,8 +34,8 @@ func NewServer(addr string, opts ...ServerOptions) *Server {
 		addr:    addr,
 		// 头疼测试时用了 new(authentication) 写死了返回 true，用时间戳当 userId 的默认实现
 		authentication: opt.Authentication,
-		userToConn:     make(map[string]*websocket.Conn),
-		connToUser:     make(map[*websocket.Conn]string),
+		userToConn:     make(map[string]*Conn),
+		connToUser:     make(map[*Conn]string),
 
 		patten: opt.patten,
 
@@ -45,7 +45,7 @@ func NewServer(addr string, opts ...ServerOptions) *Server {
 }
 
 // 获取请求id
-func (s *Server) addConn(conn *websocket.Conn, req *http.Request) {
+func (s *Server) addConn(conn *Conn, req *http.Request) {
 	uid := s.authentication.UserId(req)
 
 	// 配置锁
@@ -56,7 +56,7 @@ func (s *Server) addConn(conn *websocket.Conn, req *http.Request) {
 	s.userToConn[uid] = conn
 }
 
-func (s *Server) GetConns(uids ...string) []*websocket.Conn {
+func (s *Server) GetConns(uids ...string) []*Conn {
 	if len(uids) == 0 {
 		return nil
 	}
@@ -64,14 +64,14 @@ func (s *Server) GetConns(uids ...string) []*websocket.Conn {
 	s.RWMutex.RLock()
 	defer s.RWMutex.RUnlock()
 
-	res := make([]*websocket.Conn, 0, len(uids))
+	res := make([]*Conn, 0, len(uids))
 	for _, uid := range uids {
 		res = append(res, s.userToConn[uid])
 	}
 	return res
 }
 
-func (s *Server) GetUsers(conns ...*websocket.Conn) []string {
+func (s *Server) GetUsers(conns ...*Conn) []string {
 
 	s.RWMutex.RLock()
 	defer s.RWMutex.RUnlock()
@@ -94,19 +94,19 @@ func (s *Server) GetUsers(conns ...*websocket.Conn) []string {
 	return res
 }
 
-func (s *Server) GetConn(uid string) *websocket.Conn {
+func (s *Server) GetConn(uid string) *Conn {
 	s.RWMutex.RLock()
 	defer s.RWMutex.RUnlock()
 	return s.userToConn[uid]
 }
 
-func (s *Server) GetUser(uid string) *websocket.Conn {
+func (s *Server) GetUser(uid string) *Conn {
 	s.RWMutex.RLock()
 	defer s.RWMutex.RUnlock()
 	return s.userToConn[uid]
 }
 
-func (s *Server) Close(conn *websocket.Conn) {
+func (s *Server) Close(conn *Conn) {
 	s.RWMutex.Lock()
 	defer s.RWMutex.Unlock()
 	uid := s.connToUser[conn]
@@ -128,11 +128,15 @@ func (s *Server) ServerWs(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	conn, err := s.upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		s.Errorf("Upgrader err %v", err)
+	conn := NewConn(s, w, r)
+	if conn == nil {
 		return
 	}
+	//conn, err := s.upgrader.Upgrade(w, r, nil)
+	//if err != nil {
+	//	s.Errorf("Upgrader err %v", err)
+	//	return
+	//}
 
 	if !s.authentication.Auth(w, r) {
 		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("不具备访问权限")))
@@ -148,7 +152,7 @@ func (s *Server) ServerWs(w http.ResponseWriter, r *http.Request) {
 	go s.handlerConn(conn)
 }
 
-func (s *Server) handlerConn(conn *websocket.Conn) {
+func (s *Server) handlerConn(conn *Conn) {
 	for {
 		// 获取请求消息
 		_, msg, err := conn.ReadMessage()
@@ -199,7 +203,7 @@ func (s *Server) SendByUserId(msg interface{}, sendIds ...string) error {
 	return s.Send(msg, s.GetConns(sendIds...)...)
 }
 
-func (s *Server) Send(msg interface{}, conns ...*websocket.Conn) error {
+func (s *Server) Send(msg interface{}, conns ...*Conn) error {
 	if len(conns) == 0 {
 		return nil
 	}
