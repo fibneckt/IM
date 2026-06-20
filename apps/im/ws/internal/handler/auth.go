@@ -18,6 +18,10 @@ type JwtAuth struct {
 }
 
 func (j JwtAuth) Auth(w http.ResponseWriter, r *http.Request) bool {
+<<<<<<< HEAD
+=======
+	// j.Infof("request headers: %v", r.Header) // 加这行看看到底有没有 Authorization
+>>>>>>> 72ed3df (修正了 JwtSecret 不一致导致的错误)
 	tok, err := j.parser.ParseToken(r, j.svc.Config.JwtAuth.AccessSecret, "")
 	if err != nil {
 		// 解析错误

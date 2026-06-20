@@ -9,5 +9,5 @@ UserRpc:
     Key: user.rpc
 
 JwtAuth:
-  AccessSecret: IM.fibneckt
+  AccessSecret: im.fibneckt
   AccessExpire: 8640000

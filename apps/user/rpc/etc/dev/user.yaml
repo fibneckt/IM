@@ -15,5 +15,5 @@ Cache:
      Pass:
 
 Jwt:
-  AccessSecret: IM.fibneckt
+  AccessSecret: im.fibneckt
   AccessExpire: 8640000

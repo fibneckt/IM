@@ -136,6 +136,7 @@ func (s *Server) ServerWs(w http.ResponseWriter, r *http.Request) {
 
 	if !s.authentication.Auth(w, r) {
 		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("不具备访问权限")))
+		conn.Close()
 		return
 	}
 
