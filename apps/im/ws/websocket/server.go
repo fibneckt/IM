@@ -40,7 +40,7 @@ func NewServer(addr string, opts ...ServerOptions) *Server {
 		userToConn:     make(map[string]*Conn),
 		connToUser:     make(map[*Conn]string),
 
-		patten: opt.patten,
+		patten: opt.pattern,
 
 		upgrader: websocket.Upgrader{},
 		Logger:   logx.WithContext(context.Background()),
