@@ -32,7 +32,7 @@ func (c *client) Send(v any) error {
 	}
 
 	err = c.WriteMessage(websocket.TextMessage, data)
-	if err != nil {
+	if err == nil {
 		return err
 	}
 	// todo: 再添加一个重连发送

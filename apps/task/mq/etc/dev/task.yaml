@@ -6,7 +6,7 @@ MsgChatTransfer:
   Brokers:
     - 127.0.0.1:9092
   Group: kafka
-  Topic: msgChatTransfer
+  Topic: MsgChatTransfer
   Offset: first
   Consumers: 1
 

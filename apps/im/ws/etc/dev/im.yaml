@@ -7,3 +7,8 @@ JwtAuth:
 Mongo:
   Url: "mongodb://root:asdasd@127.0.0.1:27017"
   Db: im
+
+MsgChatTransfer:
+  Topic: MsgChatTransfer
+  Addrs:
+    - 127.0.0.1:9092

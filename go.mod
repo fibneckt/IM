@@ -10,10 +10,10 @@ require (
 	github.com/jinzhu/copier v0.4.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/errors v0.9.1
-	github.com/zeromicro/go-queue v1.2.2
+	github.com/zeromicro/go-queue v1.1.8
 	github.com/zeromicro/go-zero v1.10.2
 	github.com/zeromicro/x v0.0.0-20240408115609-8224c482b07e
-	go.mongodb.org/mongo-driver v1.10.2
+	go.mongodb.org/mongo-driver v1.11.1
 	go.mongodb.org/mongo-driver/v2 v2.6.0
 	golang.org/x/crypto v0.48.0
 	google.golang.org/grpc v1.81.1
