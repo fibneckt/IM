@@ -9,3 +9,15 @@ MsgChatTransfer:
   Topic: msgChatTransfer
   Offset: first
   Consumers: 1
+
+Redisx:
+  Host: 127.0.0.1:6379
+  Type: node
+  Pass:
+
+Mongo:
+  Url: "mongodb://root:asdasd@127.0.0.1:27017"
+  Db: im
+
+Ws:
+  Host: 127.0.0.1:10003

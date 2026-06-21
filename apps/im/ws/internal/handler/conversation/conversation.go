@@ -14,7 +14,7 @@ import (
 
 func Chat(svc *svc.ServiceContext) websocket.HandlerFunc {
 	return func(srv *websocket.Server, conn *websocket.Conn, msg *websocket.Message) {
-		// todo: 私聊
+		// 私聊
 		var data ws.Chat
 		if err := mapstructure.Decode(msg.Data, &data); err != nil {
 			srv.Send(websocket.NewErrMessage(err), conn)

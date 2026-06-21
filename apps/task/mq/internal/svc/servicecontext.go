@@ -1,15 +1,41 @@
 package svc
 
 import (
+	"IM/apps/im/immodels"
+	"IM/apps/im/ws/websocket"
 	"IM/apps/task/mq/internal/config"
+	"IM/pkg/constants"
+	"net/http"
+
+	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 type ServiceContext struct {
 	config.Config
+
+	WsClient websocket.Client
+	*redis.Redis
+	immodels.ChatLogModel
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	return &ServiceContext{
-		Config: c,
+	svc := &ServiceContext{
+		Config:       c,
+		Redis:        redis.MustNewRedis(c.Redisx),
+		ChatLogModel: immodels.MustChatLogModel(c.Mongo.Url, c.Mongo.Db),
 	}
+
+	token, err := svc.GetSystemToken()
+	if err != nil {
+		panic(err)
+	}
+
+	header := http.Header{}
+	header.Set("Authorization", token)
+	svc.WsClient = websocket.NewClient(c.Ws.Host, websocket.WithServerHeader(header))
+	return svc
+}
+
+func (svc *ServiceContext) GetSystemToken() (string, error) {
+	return svc.Redis.Get(constants.REDIS_SYSTEM_ROOT_TOKEN)
 }
