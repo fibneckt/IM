@@ -8,6 +8,11 @@ Etcd:
 Mysql:
   DataSource: root:@tcp(127.0.0.1:3306)/im?charset=utf8mb4&loc=UTC
 
+Redisx:
+  Host: 127.0.0.1:6379
+  Type: node
+  Pass:
+
 Cache:
   # redis
    - Host: 127.0.0.1:6379
