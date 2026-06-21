@@ -3,3 +3,7 @@ ListenOn: 0.0.0.0:10003
 
 JwtAuth:
   AccessSecret: im.fibneckt
+
+Mongo:
+  Url: "mongodb://root:asdasd@127.0.0.1:27017"
+  Db: im

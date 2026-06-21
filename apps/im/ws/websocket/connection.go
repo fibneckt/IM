@@ -9,11 +9,14 @@ import (
 )
 
 type Conn struct {
-	idlemu sync.Mutex
-	*websocket.Conn
-	s    *Server
-	idle time.Time
+	idleMu sync.Mutex
 
+	Uid string
+
+	*websocket.Conn
+	s *Server
+
+	idle              time.Time
 	maxConnectionIdle time.Duration
 
 	done chan struct{}
@@ -41,15 +44,15 @@ func NewConn(s *Server, w http.ResponseWriter, r *http.Request) *Conn {
 func (c *Conn) ReadMessage() (messageType int, p []byte, err error) {
 	messageType, p, err = c.Conn.ReadMessage()
 
-	c.idlemu.Lock()
-	defer c.idlemu.Unlock()
+	c.idleMu.Lock()
+	defer c.idleMu.Unlock()
 	c.idle = time.Now()
 	return
 }
 
 func (c *Conn) WriteMessage(messageType int, data []byte) error {
-	c.idlemu.Lock()
-	defer c.idlemu.Unlock()
+	c.idleMu.Lock()
+	defer c.idleMu.Unlock()
 
 	err := c.Conn.WriteMessage(messageType, data)
 	c.idle = time.Now()
@@ -75,9 +78,9 @@ func (c *Conn) keepalive() {
 		case <-c.done:
 			return
 		case <-ticker.C:
-			c.idlemu.Lock()
+			c.idleMu.Lock()
 			idle := c.idle
-			c.idlemu.Unlock()
+			c.idleMu.Unlock()
 
 			if time.Since(idle) >= c.maxConnectionIdle {
 				c.s.Close(c)

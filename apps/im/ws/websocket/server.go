@@ -158,7 +158,13 @@ func (s *Server) ServerWs(w http.ResponseWriter, r *http.Request) {
 	go s.handlerConn(conn)
 }
 
+// 根据连接对象执行任务处理
 func (s *Server) handlerConn(conn *Conn) {
+
+	// 方便获取连接
+	uids := s.GetUsers(conn)
+	conn.Uid = uids[0]
+
 	for {
 		// 设置读超时：10s 内没收到消息（包括 FramePing），主动断开
 		if err := conn.Conn.SetReadDeadline(time.Now().Add(s.opt.maxConnectionIdle)); err != nil {
