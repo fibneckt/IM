@@ -7,7 +7,6 @@ import (
 	"IM/apps/im/ws/websocket"
 	"flag"
 	"fmt"
-	"time"
 
 	"github.com/zeromicro/go-zero/core/conf"
 )
@@ -28,7 +27,9 @@ func main() {
 	// 添加jwt 中间件
 	srv := websocket.NewServer(c.ListenOn,
 		websocket.WithServerAuthentication(handler.NewJwtAuth(ctx)),
-		websocket.WithServerMaxConnectionIdle(3600*time.Second),
+		// 心跳机制最大时间限制
+		// websocket.WithServerMaxConnectionIdle(10*time.Second),
+		websocket.WithServerAck(websocket.OnlyAck),
 	)
 	defer srv.Stop()
 

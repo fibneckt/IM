@@ -6,7 +6,7 @@ info(
 )
 
 type User {
-    Id string `json:"id"`
+    Id string `json:"Id"`
     Mobile string `json:"mobile"`
     Nickname string `json:"nickname"`
     Sex byte `json:"sex"`
@@ -15,7 +15,7 @@ type User {
 
 type (
     RegisterReq {
-        Id string `json:"id"`
+        Id string `json:"Id"`
         Phone string `json:"mobile"`
         Nickname string `json:"nickname"`
         Sex byte `json:"sex"`

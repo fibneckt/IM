@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -185,6 +186,13 @@ func (s *Server) handlerConn(conn *Conn) {
 	uids := s.GetUsers(conn)
 	conn.Uid = uids[0]
 
+	// 处理任务
+	go s.handlerWrite(conn)
+
+	if s.isAck(nil) {
+		go s.readAck(conn)
+	}
+
 	for {
 		// 获取客户端请求消息
 		_, msg, err := conn.ReadMessage()
@@ -204,30 +212,133 @@ func (s *Server) handlerConn(conn *Conn) {
 
 		// todo: 给客户端回复一个ack告诉其收到消息
 
-		// 根据消息类型进行处理
-		switch message.FrameType {
-		case FramePing:
-			// 心跳响应：收到 ping 回复 pong，同时读超时已被重置
-			s.Send(&Message{FrameType: FramePing}, conn)
-		case FrameData:
-			// 根据请求的 method 分发路由并执行
-			if handler, ok := s.routers[message.Method]; ok {
-				handler(s, conn, &message)
-			} else {
-				s.Send(&Message{FrameType: FrameData, Data: fmt.Sprintf("不存在执行的方法 %v 请检查", message.Method)}, conn)
-			}
+		// 根据消息进行处理
+		if s.isAck(&message) {
+			s.Infof("conn message read ack msg %v", message)
+			conn.appendMsgMq(&message)
+		} else {
+			conn.message <- &message
 		}
 	}
 }
 
-// 读取消息的ack
-func (s *Server) readAck() {
+func (s *Server) isAck(message *Message) bool {
+	if message == nil {
+		return s.opt.ack == NoAck
+	}
 
+	return s.opt.ack != NoAck && message.FrameType == FrameAck
+}
+
+// 读取消息的ack进行确认
+func (s *Server) readAck(conn *Conn) {
+	for {
+		select {
+		case <-conn.done:
+			s.Infof("close message ack uid %v", conn.Uid)
+			return
+		default:
+
+		}
+		// 从队列中读取新的消息
+		conn.messageMu.Lock()
+		if len(conn.readMessage) == 0 {
+			conn.messageMu.Unlock()
+			// 增加睡眠 利于任务切换
+			time.Sleep(100 * time.Microsecond)
+			continue
+		}
+
+		// 读取第一条
+		message := conn.readMessage[0]
+
+		// 判断 ack 的方式
+		switch s.opt.ack {
+		case OnlyAck:
+			// 直接给客户端回复
+			s.Send(&Message{
+				FrameType: FrameAck,
+				Id:        message.Id,
+				AckSeq:    message.AckSeq + 1,
+			}, conn)
+			// 进行业务处理
+			// 把消息从队列中移除
+			conn.readMessage = conn.readMessage[1:]
+			conn.messageMu.Unlock()
+
+			conn.message <- message
+		case RigorAck:
+			// 先回
+			if message.AckSeq == 0 {
+				// 还未确认
+				conn.readMessage[0].AckSeq++
+				conn.readMessage[0].ackTime = time.Now()
+				s.Send(&Message{
+					FrameType: FrameAck,
+					Id:        message.Id,
+					AckSeq:    message.AckSeq,
+				}, conn)
+				s.Infof("message ack RigorAck send mid %v, seq %v, time %v", message.Id, message.AckSeq, message.ackTime)
+				conn.messageMu.Unlock()
+				continue
+			}
+			// 再验证
+
+			// 1. 客户端返回结果，再一次确认
+			msgSeq := conn.readMessageSeq[message.Id]
+			if msgSeq.AckSeq > message.AckSeq {
+				conn.readMessage = conn.readMessage[1:]
+				conn.messageMu.Unlock()
+				conn.message <- message
+				s.Infof("message ack RigorAck success mid %v", message.Id)
+				continue
+			}
+			// 2. 客户端没有确认 是否超过了 ack 的确认时间
+			val := s.opt.ackTimeout - time.Since(message.ackTime)
+			if !message.ackTime.IsZero() && val <= 0 {
+				//		2.2 超过结束确认
+				delete(conn.readMessageSeq, message.Id)
+				conn.readMessage = conn.readMessage[1:]
+				conn.messageMu.Unlock()
+				continue
+			}
+			// 		2.1 未超过，重新发送
+			conn.messageMu.Unlock()
+			s.Send(&Message{
+				FrameType: FrameAck,
+				Id:        message.Id,
+				AckSeq:    message.AckSeq,
+			}, conn)
+			s.Infof("message ack RigorAck send mid %v, seq %v, time %v", message.Id, message.AckSeq, message.ackTime)
+			conn.messageMu.Unlock()
+			// sleep
+			time.Sleep(300 * time.Microsecond)
+		}
+	}
 }
 
 // 任务的处理
-func (s *Server) handlerWrite() {
-
+func (s *Server) handlerWrite(conn *Conn) {
+	for {
+		select {
+		case <-conn.done:
+			// 连接关闭
+			return
+		case message := <-conn.message:
+			switch message.FrameType {
+			case FramePing:
+				// 心跳响应：收到 ping 回复 pong，同时读超时已被重置
+				s.Send(&Message{FrameType: FramePing}, conn)
+			case FrameData:
+				// 根据请求的 method 分发路由并执行
+				if handler, ok := s.routers[message.Method]; ok {
+					handler(s, conn, message)
+				} else {
+					s.Send(&Message{FrameType: FrameData, Data: fmt.Sprintf("不存在执行的方法 %v 请检查", message.Method)}, conn)
+				}
+			}
+		}
+	}
 }
 
 func (s *Server) AddRoutes(rs []Route) {

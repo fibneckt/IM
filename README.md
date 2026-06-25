@@ -126,7 +126,7 @@ func (l *LoginLogic) Login(in *user.LoginReq) (*user.LoginResp, error) {
 
 ```proto
 message GetUserInfoReq {
-  string id = 1;
+  string Id = 1;
 }
 
 message GetUserInfoResp {
@@ -234,7 +234,7 @@ func (l *FriendPutInLogic) FriendPutIn(in *social.FriendPutInReq) (*social.Frien
 	// 是否已经有过申请，申请不成功，没有完成
 	friendReqs, err := l.svcCtx.FriendRequestsModel.FindByReqUidAndUserId(l.ctx, in.ReqUid, in.UserId)
 	if err != nil && err != socialmodels.ErrNotFound {
-		return nil, errors.Wrapf(xerr.NewDBErr(), "find friend requests by req uid and user id err %v req %v", err, in)
+		return nil, errors.Wrapf(xerr.NewDBErr(), "find friend requests by req uid and user Id err %v req %v", err, in)
 	}
 
 	if friendReqs != nil {
