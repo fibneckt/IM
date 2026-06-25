@@ -6,11 +6,31 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/zeromicro/go-zero/core/logx"
 )
+
+type AckType int
+
+const (
+	// 不确认ack
+	NoAck AckType = iota
+	// 只有一次应答
+	OnlyAck
+	// 严格 客户端收到必须回复
+	RigorAck
+)
+
+func (t AckType) ToString() string {
+	switch t {
+	case OnlyAck:
+		return "OnlyAck"
+	case RigorAck:
+		return "RigorAck"
+	}
+	return "NoAck"
+}
 
 type Server struct {
 	routers map[string]HandlerFunc // 路由
@@ -166,13 +186,7 @@ func (s *Server) handlerConn(conn *Conn) {
 	conn.Uid = uids[0]
 
 	for {
-		// 设置读超时：10s 内没收到消息（包括 FramePing），主动断开
-		if err := conn.Conn.SetReadDeadline(time.Now().Add(s.opt.maxConnectionIdle)); err != nil {
-			s.Errorf("set read deadline err %v", err)
-			s.Close(conn)
-			return
-		}
-
+		// 获取客户端请求消息
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			s.Errorf("websocket conn read message err %v", err)
@@ -188,6 +202,8 @@ func (s *Server) handlerConn(conn *Conn) {
 			return
 		}
 
+		// todo: 给客户端回复一个ack告诉其收到消息
+
 		// 根据消息类型进行处理
 		switch message.FrameType {
 		case FramePing:
@@ -202,6 +218,16 @@ func (s *Server) handlerConn(conn *Conn) {
 			}
 		}
 	}
+}
+
+// 读取消息的ack
+func (s *Server) readAck() {
+
+}
+
+// 任务的处理
+func (s *Server) handlerWrite() {
+
 }
 
 func (s *Server) AddRoutes(rs []Route) {
