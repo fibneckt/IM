@@ -1,3 +1,8 @@
+/**
+ * @author: dn-jinmin/dn-jinmin
+ * @doc:
+ */
+
 package constants
 
 // 处理结果 1. 未处理，2. 处理， 3. 拒绝

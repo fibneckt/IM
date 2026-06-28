@@ -1,18 +1,22 @@
+/**
+ * @author: dn-jinmin/dn-jinmin
+ * @doc:
+ */
+
 package wuid
 
 import (
 	"database/sql"
 	"fmt"
+	"github.com/edwingeng/wuid/mysql/wuid"
 	"sort"
 	"strconv"
-
-	"github.com/edwingeng/wuid/mysql/wuid"
 )
 
-// 可以通过 sql 或者 redis 来生成唯一id
 var w *wuid.WUID
 
 func Init(dsn string) {
+
 	newDB := func() (*sql.DB, bool, error) {
 		db, err := sql.Open("mysql", dsn)
 		if err != nil {
@@ -35,10 +39,12 @@ func GenUid(dsn string) string {
 
 func CombineId(aid, bid string) string {
 	ids := []string{aid, bid}
+
 	sort.Slice(ids, func(i, j int) bool {
 		a, _ := strconv.ParseUint(ids[i], 0, 64)
 		b, _ := strconv.ParseUint(ids[j], 0, 64)
 		return a < b
 	})
+
 	return fmt.Sprintf("%s_%s", ids[0], ids[1])
 }

@@ -1,10 +1,13 @@
+/**
+ * @author: dn-jinmin/dn-jinmin
+ * @doc:
+ */
+
 package ctxdata
 
-import (
-	"github.com/golang-jwt/jwt/v5"
-)
+import "github.com/golang-jwt/jwt"
 
-const Identify = "IM.fibneckt"
+const Identify = "imooc.com"
 
 func GetJwtToken(secretKey string, iat, seconds int64, uid string) (string, error) {
 	claims := make(jwt.MapClaims)

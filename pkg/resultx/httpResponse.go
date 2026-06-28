@@ -1,14 +1,19 @@
+/**
+ * @author: dn-jinmin/dn-jinmin
+ * @doc:
+ */
+
 package resultx
 
 import (
-	"IM/pkg/xerr"
 	"context"
-	"net/http"
-
 	"github.com/pkg/errors"
 	"github.com/zeromicro/go-zero/core/logx"
 	zrpcErr "github.com/zeromicro/x/errors"
 	"google.golang.org/grpc/status"
+	"net/http"
+
+	"imooc.com/easy-chat/pkg/xerr"
 )
 
 type Response struct {
@@ -25,10 +30,10 @@ func Success(data interface{}) *Response {
 	}
 }
 
-func Fail(code int, msg string) *Response {
+func Fail(code int, err string) *Response {
 	return &Response{
 		Code: code,
-		Msg:  msg,
+		Msg:  err,
 		Data: nil,
 	}
 }
@@ -39,12 +44,10 @@ func OkHandler(_ context.Context, v interface{}) any {
 
 func ErrHandler(name string) func(ctx context.Context, err error) (int, any) {
 	return func(ctx context.Context, err error) (int, any) {
-
 		errcode := xerr.SERVER_COMMON_ERROR
 		errmsg := xerr.ErrMsg(errcode)
 
 		causeErr := errors.Cause(err)
-
 		if e, ok := causeErr.(*zrpcErr.CodeMsg); ok {
 			errcode = e.Code
 			errmsg = e.Msg
@@ -55,9 +58,9 @@ func ErrHandler(name string) func(ctx context.Context, err error) (int, any) {
 			}
 		}
 
-		logx.WithContext(ctx).Errorf("[%s] err %v", name, err)
+		// 日志记录
+		logx.WithContext(ctx).Errorf("【%s】 err %v", name, err)
 
 		return http.StatusBadRequest, Fail(errcode, errmsg)
 	}
-
 }
