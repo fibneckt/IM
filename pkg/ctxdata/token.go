@@ -1,11 +1,6 @@
-/**
- * @author: dn-jinmin/dn-jinmin
- * @doc:
- */
-
 package ctxdata
 
-import "github.com/golang-jwt/jwt"
+import "github.com/golang-jwt/jwt/v5"
 
 const Identify = "imooc.com"
 

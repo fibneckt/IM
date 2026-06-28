@@ -1,4 +1,4 @@
-module imooc.com/easy-chat
+module IM
 
 go 1.21
 

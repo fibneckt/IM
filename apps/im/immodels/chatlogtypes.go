@@ -1,8 +1,9 @@
 package immodels
 
 import (
-	"IM/pkg/constants"
 	"time"
+
+	"IM/pkg/constants"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )

@@ -15,5 +15,4 @@ docker pull ${reso_addr}:${tag}
 
 
 # 如果需要指定配置文件的
-# docker run -p 10001:8080 --network imooc_easy-im -v /easy-im/config/user-rpc:/user/conf/ --name=${container_name} -d ${reso_addr}:${tag}
 docker run --network host --name=${container_name} -d ${reso_addr}:${tag}
