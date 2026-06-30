@@ -63,6 +63,7 @@ func (l *SetUpUserConversationLogic) SetUpUserConversation(in *im.SetUpUserConve
 	case constants.GroupChatType:
 		// 建立群聊：动作触发时在加群通过后
 		// 用户加入群后应该在会话里显示群聊
+		// 接收者就是群Id
 		err := l.setUpUserConversation(in.RecvId, in.SendId, constants.GroupChatType, true)
 		if err != nil {
 			return &res, errors.Wrapf(err, "set up user conversation err %v, req %v", err, in)

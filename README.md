@@ -351,3 +351,39 @@ func (l *FriendListLogic) FriendList(in *social.FriendListReq) (*social.FriendLi
 	}, nil
 }
 ```
+
+# 实现用户群聊功能
+
+## 创建群聊会话
+
+```go
+// 创建群聊会话
+func (l *CreateGroupConversationLogic) CreateGroupConversation(in *im.CreateGroupConversationReq) (*im.CreateGroupConversationResp, error) {
+	res := &im.CreateGroupConversationResp{}
+
+	_, err := l.svcCtx.ConversationModel.FindOne(l.ctx, in.GroupId)
+	if err == nil {
+		return res, nil
+	}
+
+	if err != immodels.ErrNotFound {
+		return nil, errors.Wrapf(xerr.NewDBErr(), "Conversation.FindOne err %v, req %v", err, in.GroupId)
+	}
+
+	err = l.svcCtx.ConversationModel.Insert(l.ctx, &immodels.Conversation{
+		ConversationId: in.GroupId,
+		ChatType:       constants.GroupChatType,
+	})
+
+	_, err = NewSetUpUserConversationLogic(l.ctx, l.svcCtx).SetUpUserConversation(&im.SetUpUserConversationReq{
+		SendId:   in.CreatedId,
+		RecvId:   in.GroupId,
+		ChatType: int32(constants.GroupChatType),
+	})
+	return res, nil
+}
+```
+
+## websocket并发发送
+
+## 消息队列处理

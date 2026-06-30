@@ -6,6 +6,7 @@ import (
 	"IM/apps/im/ws/ws"
 	"IM/apps/task/mq/mq"
 	"IM/pkg/constants"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -25,9 +26,9 @@ func Chat(svc *svc.ServiceContext) websocket.HandlerFunc {
 			err := svc.MsgChatTransferClient.Push(&mq.MsgChatTransfer{
 				ConversationId: data.ConversationId,
 				ChatType:       data.ChatType,
-				SendId:         data.SenderId,
+				SendId:         conn.Uid,
 				RecvId:         data.ReceiverId,
-				SendTime:       data.SendTime,
+				SendTime:       time.Now().UnixNano(),
 				MType:          data.Msg.MType,
 				Content:        data.Msg.Content,
 			})
