@@ -16,13 +16,15 @@ type ServiceContext struct {
 	WsClient websocket.Client
 	*redis.Redis
 	immodels.ChatLogModel
+	immodels.ConversationModel
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	svc := &ServiceContext{
-		Config:       c,
-		Redis:        redis.MustNewRedis(c.Redisx),
-		ChatLogModel: immodels.MustChatLogModel(c.Mongo.Url, c.Mongo.Db),
+		Config:            c,
+		Redis:             redis.MustNewRedis(c.Redisx),
+		ChatLogModel:      immodels.MustChatLogModel(c.Mongo.Url, c.Mongo.Db),
+		ConversationModel: immodels.MustConversationModel(c.Mongo.Url, c.Mongo.Db),
 	}
 
 	token, err := svc.GetSystemToken()

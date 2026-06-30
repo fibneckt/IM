@@ -35,10 +35,9 @@ func (m *MsgChatTransfer) Consume(key, value string) error {
 		return err
 	}
 
-	// 推送消息
-
+	// 推送发送
 	return m.svc.WsClient.Send(websocket.Message{
-		FrameType: websocket.FrameData,
+		FrameType: websocket.FrameNoAck,
 		Method:    "push",
 		FormId:    constants.SYSTEM_ROOT_UID,
 		Data:      data,
@@ -65,6 +64,9 @@ func (m *MsgChatTransfer) addChatLog(ctx context.Context, data *mq.MsgChatTransf
 		MsgContent:     data.Content,
 		SendTime:       data.SendTime,
 	}
-
-	return m.svc.ChatLogModel.Insert(ctx, &chatLog)
+	err := m.svc.ChatLogModel.Insert(ctx, &chatLog)
+	if err != nil {
+		return err
+	}
+	return m.svc.ConversationModel.UpdateMsg(ctx, &chatLog)
 }
