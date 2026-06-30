@@ -1,8 +1,12 @@
 package websocket
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 const (
-	defaultMaxConnectionIdle = 10 * time.Second
+	defaultMaxConnectionIdle = time.Duration(math.MaxInt64)
 	defaultAckTimeout        = 30 * time.Second
+	defaultConcurrency       = 10
 )

@@ -16,7 +16,7 @@ type (
 		ConversationId     string `mapstructure:"conversationId"`
 		constants.ChatType `mapstructure:"chatType"`
 		SenderId           string `mapstructure:"senderId"`
-		ReceiverId         string `mapstructure:"receiverId"`
+		ResvId             string `mapstructure:"resvId"`
 		SendTime           int64  `mapstructure:"sendTime"`
 		Msg                `mapstructure:"msg"`
 	}
@@ -29,5 +29,7 @@ type (
 		SendTime           int64  `mapstructure:"sendTime"`
 		constants.MType    `json:"mType"`
 		Content            string `json:"content"`
+
+		RecvIds []string `mapstructure:"recvIds"` // 消息队列中对多用户的接收
 	}
 )

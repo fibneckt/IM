@@ -26,14 +26,14 @@ func NewConversation(ctx context.Context, srv *websocket.Server, svc *svc.Servic
 
 func (l *Conversation) SingleChat(data *ws.Chat, userId string) error {
 	if data.ConversationId == "" {
-		data.ConversationId = wuid.CombineId(userId, data.ReceiverId)
+		data.ConversationId = wuid.CombineId(userId, data.ResvId)
 	}
 
 	// 记录消息
 	chatLog := immodels.ChatLog{
 		ConversationId: data.ConversationId,
 		SendId:         userId,
-		RecvId:         data.ReceiverId,
+		RecvId:         data.ResvId,
 		ChatType:       data.ChatType,
 		MsgFrom:        0,
 		MsgType:        data.MType,

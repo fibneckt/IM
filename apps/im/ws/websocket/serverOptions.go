@@ -12,6 +12,8 @@ type serverOption struct {
 	pattern    string
 
 	maxConnectionIdle time.Duration
+
+	concurrency int // 并发量级限制
 }
 
 func newServerOptions(opts ...ServerOptions) serverOption {
@@ -20,6 +22,7 @@ func newServerOptions(opts ...ServerOptions) serverOption {
 		pattern:           "/ws",
 		ackTimeout:        defaultAckTimeout,
 		maxConnectionIdle: defaultMaxConnectionIdle,
+		concurrency:       defaultConcurrency,
 	}
 
 	for _, opt := range opts {
