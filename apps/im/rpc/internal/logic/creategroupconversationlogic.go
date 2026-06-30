@@ -36,7 +36,7 @@ func (l *CreateGroupConversationLogic) CreateGroupConversation(in *im.CreateGrou
 		return res, nil
 	}
 
-	if err != immodels.ErrNotFound {
+	if err != nil {
 		return nil, errors.Wrapf(xerr.NewDBErr(), "Conversation.FindOne err %v, req %v", err, in.GroupId)
 	}
 
