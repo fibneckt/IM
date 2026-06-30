@@ -438,3 +438,190 @@ func group(srv *websocket.Server, data *ws.Push) error {
 ```
 
 ## 消息队列处理
+```go
+func (m *MsgChatTransfer) Consume(key, value string) error {
+	fmt.Println("key:", key, "value:", value)
+
+	var (
+		data mq.MsgChatTransfer
+		ctx  = context.Background()
+	)
+
+	if err := json.Unmarshal([]byte(value), &data); err != nil {
+		return err
+	}
+
+	// 记录数据
+	if err := m.addChatLog(ctx, &data); err != nil {
+		return err
+	}
+
+	// 添加对群聊的支持
+	switch data.ChatType {
+	case constants.GroupChatType:
+		return m.group(ctx, &data)
+	case constants.SingleChatType:
+		return m.single(&data)
+	}
+
+	// 推送发送
+	return m.svc.WsClient.Send(websocket.Message{
+		FrameType: websocket.FrameNoAck,
+		Method:    "push",
+		FormId:    constants.SYSTEM_ROOT_UID,
+		Data:      data,
+	})
+}
+
+// 消费者
+func NewMsgChatTransfer(svc *svc.ServiceContext) *MsgChatTransfer {
+	return &MsgChatTransfer{
+		Logger: logx.WithContext(context.Background()),
+		svc:    svc,
+	}
+}
+
+func (m *MsgChatTransfer) addChatLog(ctx context.Context, data *mq.MsgChatTransfer) error {
+	// 记录消息
+	chatLog := immodels.ChatLog{
+		ConversationId: data.ConversationId,
+		SendId:         data.SendId,
+		RecvId:         data.RecvId,
+		ChatType:       data.ChatType,
+		MsgFrom:        0,
+		MsgType:        data.MType,
+		MsgContent:     data.Content,
+		SendTime:       data.SendTime,
+	}
+	err := m.svc.ChatLogModel.Insert(ctx, &chatLog)
+	if err != nil {
+		return err
+	}
+	return m.svc.ConversationModel.UpdateMsg(ctx, &chatLog)
+}
+
+func (m *MsgChatTransfer) single(data *mq.MsgChatTransfer) error {
+	return m.svc.WsClient.Send(websocket.Message{
+		FrameType: websocket.FrameData,
+		Method:    "push",
+		FormId:    constants.SYSTEM_ROOT_UID,
+		Data:      data,
+	})
+}
+
+func (m *MsgChatTransfer) group(ctx context.Context, data *mq.MsgChatTransfer) error {
+	// 需要查询群用户
+	// 使用rpc定义的查询用户方法
+	users, err := m.svc.Social.GroupUsers(ctx, &socialclient.GroupUsersReq{
+		GroupId: data.RecvId,
+	})
+	if err != nil {
+		return err
+	}
+	data.RecvIds = make([]string, 0, len(users.List))
+
+	for _, members := range users.List {
+		if members.UserId == data.SendId {
+			continue
+		}
+		data.RecvIds = append(data.RecvIds, members.UserId)
+	}
+
+	return m.svc.WsClient.Send(websocket.Message{
+		FrameType: websocket.FrameData,
+		Method:    "push",
+		FormId:    constants.SYSTEM_ROOT_UID,
+		Data:      data,
+	})
+
+}
+```
+
+# 消息已读未读
+
+## 存储思路
+
+- 记录接收列表与已读列表，列表维护内容均为id
+- 记录已读列表，以群列表作为接收列表，已读列表记录为id
+- 在2的基础上做优化，以bit标记用户是否存储
+
+这里采用第3种方案
+
+## 实现选择
+
+- 不使用redis的HyperLogLog存储而使用bitmap
+
+HyperLogLog是一种概率型的数据结构，更具有更复杂的计算和存储机制，并且空间占用比bitmap大
+
+- 自己实现bitmap并不直接用redis的bitmap
+
+redis中的bitmap有自己的封装和处理，使用起来还要考虑一些交互问题
+
+## 业务实现
+
+### 从0实现bitmap
+```go
+//pkg/bitmap/bitmap.go
+type Bitmap struct {
+	bits []byte
+	size int
+}
+
+func NewBitmap(size int) *Bitmap {
+	if size == 0 {
+		size = 250
+	}
+	return &Bitmap{
+		bits: make([]byte, size), // go中只有byte没有bit
+		size: size * 8,           // size个bit
+	}
+}
+
+func (b Bitmap) Set(id string) {
+	// id在那个bit
+	idx := hash(id) % b.size
+	// 计算在那个byte
+	byteIdx := idx / 8
+	// 在这个byte中的那个bit位置
+	bitIdx := idx % 8
+
+	b.bits[byteIdx] |= (1 << bitIdx)
+}
+
+func (b *Bitmap) IsSet(id string) bool {
+	// id在那个bit
+	idx := hash(id) % b.size
+	// 计算在那个byte
+	byteIdx := idx / 8
+	// 在这个byte中的那个bit位置
+	bitIdx := idx % 8
+
+	return (b.bits[byteIdx] & (1 << bitIdx)) != 0
+}
+
+func (b *Bitmap) Export() []byte {
+	return b.bits
+}
+
+func Load(bits []byte) *Bitmap {
+	if len(bits) == 0 {
+		return NewBitmap(0)
+	}
+	return &Bitmap{
+		bits: bits,
+		size: len(bits) * 8,
+	}
+}
+
+func hash(id string) int {
+	seed := 131313
+	hash := 0
+	for _, c := range id {
+		hash = hash*seed + int(c)
+	}
+	return hash & 0x7FFFFFFF
+}
+
+```
+
+### 群聊消息已读未读
