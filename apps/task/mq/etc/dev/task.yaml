@@ -21,3 +21,9 @@ Mongo:
 
 Ws:
   Host: 127.0.0.1:10003
+
+SocialRPC:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: social.rpc
