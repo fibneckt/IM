@@ -6,9 +6,10 @@ import "IM/pkg/constants"
 type MsgChatTransfer struct {
 	ConversationId     string `json:"conversationId"`
 	constants.ChatType `json:"chatType"`
-	SendId             string `json:"sendId"`
-	RecvId             string `json:"recvId"`
-	SendTime           int64  `json:"sendTime"`
+	SendId             string   `json:"sendId"`
+	RecvId             string   `json:"recvId"`
+	SendTime           int64    `json:"sendTime"`
+	RecvIds            []string `json:"recvIds"`
 
 	constants.MType `json:"mType"`
 	Content         string `json:"content"`

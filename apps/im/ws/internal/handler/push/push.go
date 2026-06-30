@@ -30,7 +30,7 @@ func Push(svc *svc.ServiceContext) websocket.HandlerFunc {
 // 私聊
 // 多线程下群聊
 func single(srv *websocket.Server, data *ws.Push, recvId string) error {
-	rconn := srv.GetConn(data.RecvId)
+	rconn := srv.GetConn(recvId)
 	if rconn == nil {
 		return nil
 	}
