@@ -3,12 +3,13 @@ package immodels
 
 import (
 	"context"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/zeromicro/go-zero/core/stores/mon"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type chatLogModel interface {
@@ -17,10 +18,43 @@ type chatLogModel interface {
 	ListBySendTime(ctx context.Context, conversationId string, startSendTime, endSendTime, limit int64) ([]*ChatLog, error)
 	Update(ctx context.Context, data *ChatLog) error
 	Delete(ctx context.Context, id string) error
+	ListByMsgIds(ctx context.Context, msgIds []string) ([]*ChatLog, error)
+	UpdateMakeRead(ctx context.Context, id primitive.ObjectID, readRecords []byte) error
 }
 
 type defaultChatLogModel struct {
 	conn *mon.Model
+}
+
+func (m *defaultChatLogModel) UpdateMakeRead(ctx context.Context, id primitive.ObjectID, readRecords []byte) error {
+	_, err := m.conn.UpdateOne(ctx, bson.M{
+		"_id": id,
+	}, bson.M{
+		"$set": bson.M{
+			"readRecords": readRecords,
+		},
+	})
+	return err
+}
+
+func (m *defaultChatLogModel) ListByMsgIds(ctx context.Context, msgIds []string) ([]*ChatLog, error) {
+	var data []*ChatLog
+	ids := make([]primitive.ObjectID, 0, len(msgIds))
+	for _, id := range msgIds {
+		oid, _ := primitive.ObjectIDFromHex(id)
+		ids = append(ids, oid)
+	}
+
+	filter := bson.M{"_id": bson.M{"$in": ids}}
+	err := m.conn.Find(ctx, filter, &data)
+	switch err {
+	case nil:
+		return data, nil
+	case mon.ErrNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
 }
 
 func newDefaultChatLogModel(conn *mon.Model) *defaultChatLogModel {

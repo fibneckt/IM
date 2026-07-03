@@ -625,3 +625,176 @@ func hash(id string) int {
 ```
 
 ### 群聊消息已读未读
+
+```go
+//apps/im/immodels/chatlogmodelgen.go
+func (m *defaultChatLogModel) UpdateMakeRead(ctx context.Context, id primitive.ObjectID, readRecords []byte) error {
+	_, err := m.conn.UpdateOne(ctx, bson.M{
+		"_id": id,
+	}, bson.M{
+		"$set": bson.M{
+			"readRecords": readRecords,
+		},
+	})
+	return err
+}
+
+func (m *defaultChatLogModel) ListByMsgIds(ctx context.Context, msgIds []string) ([]*ChatLog, error) {
+	var data []*ChatLog
+	ids := make([]primitive.ObjectID, 0, len(msgIds))
+	for _, id := range msgIds {
+		oid, _ := primitive.ObjectIDFromHex(id)
+		ids = append(ids, oid)
+	}
+
+	filter := bson.M{"_id": bson.M{"$in": ids}}
+	err := m.conn.Find(ctx, filter, &data)
+	switch err {
+	case nil:
+		return data, nil
+	case mon.ErrNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
+}
+```
+
+```go
+//task/mq/internal/handler/msgTransfer/msgReadTransger.go
+type MsgReadTransfer struct {
+	*baseMsgTransfer
+}
+
+func NewMsgReadTransfer(svc *svc.ServiceContext) kq.ConsumeHandler {
+	return &MsgReadTransfer{
+		NewBaseMsgTransfer(svc),
+	}
+}
+
+func (m *MsgReadTransfer) Consume(key, value string) error {
+	m.Info("MsgReadTransfer", value)
+	var (
+		data mq.MsgMarkRead
+		ctx  = context.Background()
+	)
+
+	if err := json.Unmarshal([]byte(value), &data); err != nil {
+		return err
+	}
+
+	// 更新
+	readRecords, err := m.UpdateChatLogRead(ctx, &data)
+	if err != nil {
+
+	}
+	// map[string]string
+
+	return m.Transfer(ctx, &ws.Push{
+		ConversationId: data.ConversationId,
+		ChatType:       data.ChatType,
+		SendId:         data.SendId,
+		RecvId:         data.RecvId,
+		ReadRecords:    readRecords,
+		//SendTime:       data.SendTime,
+		//MType:          data.MType,
+		//Content:        data.Content,
+		//RecvIds:        data.RecvIds,
+	})
+}
+
+func (m *MsgReadTransfer) UpdateChatLogRead(ctx context.Context, data *mq.MsgMarkRead) (map[string]string, error) {
+	res := make(map[string]string)
+	chatLogs, err := m.svcCtx.ChatLogModel.ListByMsgIds(ctx, data.MsgIds)
+	if err != nil {
+		return nil, err
+	}
+
+	// 处理已读
+	for _, chatLog := range chatLogs {
+		switch chatLog.ChatType {
+		case constants.SingleChatType:
+			chatLog.ReadRecords = []byte{1}
+		case constants.GroupChatType:
+			readRecords := bitmap.Load(chatLog.ReadRecords)
+			readRecords.Set(data.SendId)
+			chatLog.ReadRecords = readRecords.Export()
+		}
+		res[chatLog.ID.Hex()] = base64.StdEncoding.EncodeToString(chatLog.ReadRecords)
+
+		err = m.svcCtx.ChatLogModel.UpdateMakeRead(ctx, chatLog.ID, chatLog.ReadRecords)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return res, nil
+}
+
+```
+
+```go
+//task/mq/internal/handler/msgTransfer/msgTransger.go
+type baseMsgTransfer struct {
+	svcCtx *svc.ServiceContext
+	logx.Logger
+}
+
+func NewBaseMsgTransfer(svcCtx *svc.ServiceContext) *baseMsgTransfer {
+	return &baseMsgTransfer{
+		svcCtx: svcCtx,
+		Logger: logx.WithContext(context.Background()),
+	}
+}
+
+func (m *baseMsgTransfer) Transfer(ctx context.Context, data *ws.Push) error {
+	var err error
+	switch data.ChatType {
+	case constants.GroupChatType:
+		err = m.group(ctx, data)
+	case constants.SingleChatType:
+		err = m.single(ctx, data)
+	}
+	return err
+}
+
+func (m *baseMsgTransfer) single(ctx context.Context, data *ws.Push) error {
+	return m.svcCtx.WsClient.Send(websocket.Message{
+		FrameType: websocket.FrameData,
+		Method:    "push",
+		FormId:    constants.SYSTEM_ROOT_UID,
+		Data:      data,
+	})
+}
+
+func (m *baseMsgTransfer) group(ctx context.Context, data *ws.Push) error {
+	// 需要查询群用户
+	// 使用rpc定义的查询用户方法
+	users, err := m.svcCtx.Social.GroupUsers(ctx, &socialclient.GroupUsersReq{
+		GroupId: data.RecvId,
+	})
+	if err != nil {
+		return err
+	}
+	data.RecvIds = make([]string, 0, len(users.List))
+
+	for _, members := range users.List {
+		if members.UserId == data.SendId {
+			continue
+		}
+		data.RecvIds = append(data.RecvIds, members.UserId)
+	}
+
+	return m.svcCtx.WsClient.Send(websocket.Message{
+		FrameType: websocket.FrameData,
+		Method:    "push",
+		FormId:    constants.SYSTEM_ROOT_UID,
+		Data:      data,
+	})
+
+}
+
+```
+
+这里让msgReadTransger和msgChatTransger共用baseMsgTransger的接口

@@ -30,6 +30,15 @@ type (
 		constants.MType    `json:"mType"`
 		Content            string `json:"content"`
 
-		RecvIds []string `mapstructure:"recvIds"` // 消息队列中对多用户的接收
+		ReadRecords map[string]string     `mapstructure:"readRecords"`
+		ContentType constants.ContentType `mapstructure:"contentType"`
+		RecvIds     []string              `mapstructure:"recvIds"` // 消息队列中对多用户的接收
+	}
+
+	MarkRead struct {
+		constants.ChatType `mapstructure:"chatType"`
+		RecvId             string   `mapstructure:"recvId"`
+		ConversationId     string   `mapstructure:"conversationId"`
+		MsgIds             []string `mapstructure:"msgIds"`
 	}
 )
