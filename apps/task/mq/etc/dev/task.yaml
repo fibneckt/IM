@@ -36,3 +36,8 @@ SocialRPC:
     Hosts:
       - 127.0.0.1:2379
     Key: social.rpc
+
+MsgReadHandler:
+  GroupMsgReadHandler: 1
+  GroupMsgReadRecordDelayTime: 60
+  GroupMsgReadRecordDelayCount: 2

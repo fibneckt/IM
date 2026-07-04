@@ -18,6 +18,12 @@ type Config struct {
 		Db  string
 	}
 
+	MsgReadHandler struct {
+		GroupMsgReadHandler          int
+		GroupMsgReadRecordDelayTime  int
+		GroupMsgReadRecordDelayCount int
+	}
+
 	Ws struct {
 		Host string
 	}

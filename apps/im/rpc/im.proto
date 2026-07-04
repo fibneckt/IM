@@ -4,8 +4,9 @@ package im;
 
 option go_package = "./im";
 
-// ----- model ----- //
 
+
+// ----- model ----- //
 message ChatLog {
   string id = 1;
   string conversationId = 2;

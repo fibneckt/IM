@@ -9,8 +9,19 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"time"
 
 	"github.com/zeromicro/go-queue/kq"
+)
+
+const (
+	GroupMsgReadHandlerAtTransfer = iota
+	GroupMsgReadHandlerDelayTransfer
+)
+
+var (
+	GroupMsgReadRecordDelayTime  = time.Second
+	GroupMsgReadRecordDelayCount = 10
 )
 
 type MsgReadTransfer struct {
@@ -18,9 +29,20 @@ type MsgReadTransfer struct {
 }
 
 func NewMsgReadTransfer(svc *svc.ServiceContext) kq.ConsumeHandler {
-	return &MsgReadTransfer{
+	m := &MsgReadTransfer{
 		NewBaseMsgTransfer(svc),
 	}
+	if svc.Config.MsgReadHandler.GroupMsgReadHandler != GroupMsgReadHandlerAtTransfer {
+		if svc.Config.MsgReadHandler.GroupMsgReadRecordDelayCount > 0 {
+			GroupMsgReadRecordDelayCount = svc.Config.MsgReadHandler.GroupMsgReadRecordDelayCount
+		}
+
+		if svc.Config.MsgReadHandler.GroupMsgReadRecordDelayTime > 0 {
+			GroupMsgReadRecordDelayTime = time.Duration(svc.Config.MsgReadHandler.GroupMsgReadRecordDelayTime)
+		}
+	}
+
+	return m
 }
 
 func (m *MsgReadTransfer) Consume(key, value string) error {
