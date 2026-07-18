@@ -35,8 +35,6 @@ func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic 
 }
 
 func (l *LoginLogic) Login(in *user.LoginReq) (*user.LoginResp, error) {
-	// todo: add your logic here and delete this line
-
 	// 1. 验证用户是否注册，根据手机号验证
 	userEntity, err := l.svcCtx.UserModel.FindByPhone(l.ctx, in.Phone)
 	if err != nil {
@@ -47,7 +45,7 @@ func (l *LoginLogic) Login(in *user.LoginReq) (*user.LoginResp, error) {
 	}
 
 	// 2. 密码验证
-	if !encrypt.ValidatePassword(in.Password, userEntity.Password.String) {
+	if !encrypt.ValidatePasswordHash(in.Password, userEntity.Password.String) {
 		return nil, errors.WithStack(ErrUserPwdError)
 	}
 
