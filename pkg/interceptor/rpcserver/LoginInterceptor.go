@@ -23,8 +23,5 @@ func LoginInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, 
 	if e, ok := causeErr.(*zerr.CodeMsg); ok {
 		err = status.Error(codes.Code(e.Code), e.Msg)
 	}
-
-
-
 	return resp, err
 }
