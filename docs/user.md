@@ -220,7 +220,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 }
 ```
 
-需要给用户验证是否存在已经注册过的手机号码，所以在user的model中需要添加基于手机号查询的方式。
+需要给用户验证是否存在已经注册过的手机号码，所以在user的model中需要添加基于手机号查询的方式
 
 ```go
 // ./apps/user/models/usermodel_gen.go
@@ -244,7 +244,7 @@ func (m *defaultUserModel) FindByPhone(ctx context.Context, phone string) (*User
 }
 ```
 
-还需对用户进行加密处理以及在使用jwt的情况下仍然需获取到用户的uid信息，因此在程序中提供两个公共的包，至于pkg下以便于整个项目的调用。
+还需对用户进行加密处理以及在使用jwt的情况下仍然需获取到用户的uid信息，因此在程序中提供两个公共的包，至于pkg下以便于整个项目的调用
 
 ```go
 // ./pkg/encrypt/hash.go
@@ -477,4 +477,180 @@ func (l *LoginLogic) Login(in *user.LoginReq) (*user.LoginResp, error) {
 	}, nil
 }
 
+```
+
+#### 搜索用户
+
+用户搜索的功能对于业务来说方式有很多种，因此需要做好区分
+
+调整搜索的请求参数需求，在该方法中只使用一个条件进行处理而非多个条件一起
+
+在用户模型中增加根据name以及ids查询方法
+
+在查询的功能中，使用的是非缓存的方式进行查询，请求是直接走的数据库
+
+```go
+// ./apps/user/models/usermodel_gen.go
+type (
+	userModel interface {
+		ListByName(ctx context.Context, name string) ([]*User, error)
+		ListByIds(ctx context.Context, ids []string) ([]*User, error)
+	}
+)
+
+func (m *defaultUserModel) ListByName(ctx context.Context, name string) ([]*User, error) {
+    query := fmt.Sprintf("select %s from %s where `nickname` like ?", userRows, m.table)
+    
+    var resp []*User
+    err := m.QueryRowsNoCacheCtx(ctx, &resp, query, fmt.Sprint(name, "%", name, "%"))
+    switch err {
+        case nil:
+            return resp, nil
+        default:
+            return nil, err
+    }
+}
+
+func (m *defaultUserModel) ListByIds(ctx context.Context, ids []string) ([]*User, error) {
+    query := fmt.Sprintf("select %s from %s where `id` in ('%s') ", userRows, m.table)
+    
+    var resp []*User
+    err := m.QueryRowsNoCacheCtx(ctx, &resp, query)
+        switch err {
+        case nil:
+            return resp, nil
+        default:
+            return nil, err
+    }
+}
+```
+
+```go
+// ./apps/user/rpc/internal/logic/finduserlogic.go
+func NewFindUserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FindUserLogic {
+	return &FindUserLogic{
+		ctx:    ctx,
+		svcCtx: svcCtx,
+		Logger: logx.WithContext(ctx),
+	}
+}
+
+func (l *FindUserLogic) FindUser(in *user.FindUserReq) (*user.FindUserResp, error) {
+	var (
+		userEntitys []*models.User
+		err         error
+	)
+
+	if in.Phone != "" {
+		userEntity, err := l.svcCtx.UserModel.FindByPhone(l.ctx, in.Phone)
+		if err == nil {
+			userEntitys = append(userEntitys, userEntity)
+		}
+	} else if in.Name != "" {
+		userEntitys, err = l.svcCtx.UserModel.ListByName(l.ctx, in.Name)
+	} else if len(in.Ids) > 0 {
+		userEntitys, err = l.svcCtx.UserModel.ListByIds(l.ctx, in.Ids)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []*user.UserEntity
+	copier.Copy(&resp, userEntitys)
+
+	return &user.FindUserResp{
+		User: resp,
+	}, nil
+}
+
+```
+
+#### 获取用户信息
+
+主要是基于id的查询用户信息并返回用户的信息记录
+
+```go
+// ./apps/user/rpc/internal/logic/getuserinfologic.go
+func NewGetUserInfoLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserInfoLogic {
+	return &GetUserInfoLogic{
+		ctx:    ctx,
+		svcCtx: svcCtx,
+		Logger: logx.WithContext(ctx),
+	}
+}
+
+func (l *GetUserInfoLogic) GetUserInfo(in *user.GetUserInfoReq) (*user.GetUserInfoResp, error) {
+	userEntity, err := l.svcCtx.UserModel.FindOne(l.ctx, in.Id)
+	if err != nil {
+		if err == models.ErrNotFound {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	var resp user.UserEntity
+	copier.Copy(&resp, userEntity)
+
+	return &user.GetUserInfoResp{
+		User: &resp,
+	}, nil
+}
+
+```
+
+#### 错误处理
+
+针对错误处理目前的方式是将系统错误信息直接返回给了调用者，从程序上着不是特别友好没有做异常的处理
+
+在程序中对异常处理主要有异常信息，状态码及后续异常产生的日志信息，使用go-zero中提供对errors处理的方式
+
+可以在服务中增加对错误的日志信息记录，利用grpc的拦截器实现
+
+```go
+// ./pkg/interceptor/rpcserver/LoginInterceptor.go
+func LoginInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	resp, err = handler(ctx, req)
+	if err == nil {
+		return resp, err
+	}
+
+	logx.WithContext(ctx).Errorf("[RPC SRV ERR] %v", err)
+
+	causeErr := errors.Cause(err)
+	if e, ok := causeErr.(*zerr.CodeMsg); ok {
+		err = status.Error(codes.Code(e.Code), e.Msg)
+	}
+	return resp, err
+}
+
+```
+
+然后在服务中引用
+
+```go
+func main() {
+	flag.Parse()
+
+	var c config.Config
+	conf.MustLoad(*configFile, &c)
+	ctx := svc.NewServiceContext(c)
+
+	if err := ctx.SetRootToken(); err != nil {
+		panic(err)
+	}
+
+	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+		user.RegisterUserServer(grpcServer, server.NewUserServer(ctx))
+
+		if c.Mode == service.DevMode || c.Mode == service.TestMode {
+			reflection.Register(grpcServer)
+		}
+	})
+	s.AddUnaryInterceptors(rpcserver.LoginInterceptor) //引用
+	defer s.Stop()
+
+	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
+	s.Start()
+}
 ```
