@@ -654,3 +654,234 @@ func main() {
 	s.Start()
 }
 ```
+
+api服务
+
+在api文件中用user.api定义服务中存储的api方法，而在domain.api中则存储用户api服务的模型实例对象的数据结构。
+
+```
+//apps/user/api/user.api
+syntax = "v1"
+
+info (
+	title:  "用户服务的实例对象"
+	author: "fibneckt"
+)
+
+import (
+	"domain.api"
+)
+
+// ------------ user api v1 ---------
+// no need login
+@server (
+	prefix: v1/user
+	group:  user
+)
+service user {
+	@doc "用户注册"
+	@handler register
+	post /register (RegisterReq) returns (RegisterResp)
+
+	@doc "用户登入"
+	@handler login
+	post /login (LoginReq) returns (LoginResp)
+}
+
+// need login
+@server (
+	prefix: v1/user
+	group:  user
+	jwt:    JwtAuth // 中间件
+)
+service user {
+	@doc "获取用户信息"
+	@handler detail
+	get /user (UserInfoReq) returns (UserInfoResp)
+}
+```
+
+```
+//apps/user/api/domain.api
+syntax = "v1"
+
+info(
+    title: "用户服务的实例对象"
+    author: "fibneckt"
+)
+
+type User {
+    Id string `json:"Id"`
+    Mobile string `json:"mobile"`
+    Nickname string `json:"nickname"`
+    Sex byte `json:"sex"`
+    Avatar string `json:"avatar"`
+}
+
+type (
+    RegisterReq {
+        Id string `json:"Id"`
+        Phone string `json:"mobile"`
+        Nickname string `json:"nickname"`
+        Sex byte `json:"sex"`
+        Avatar string `json:"avatar"`
+        Password string `json:"password"`
+    }
+    RegisterResp {
+        Token string `json:"token"`
+        Expire int64  `json:"expire"`
+    }
+)
+
+type (
+    LoginReq {
+        Phone string `json:"phone"`
+        Password string `json:"password"`
+    }
+    LoginResp {
+        Token string `json:"token"`
+        Expire int64 `json:"expire"`
+    }
+)
+
+type (
+    UserInfoReq {}
+    UserInfoResp {
+        Info User `json:"info"`
+    }
+)
+```
+
+在上面的定义中，对userinfo这个方法应用了jwt中间件进行了权限验证，在go-zero中内部就已经封装好了关于jwt验证的机制。
+
+```shell
+goctl api go -api apps/user/api/user.api -dir apps/user/api -style gozero
+```
+
+### api服务配置
+
+```yaml
+##/apps/user/api/etc/dev/user.yaml
+Name: user
+Host: 0.0.0.0
+Port: 8080
+
+UserRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: user.rpc
+
+JwtAuth:
+  AccessSecret: im.fibneckt
+  AccessExpire: 8640000
+```
+
+```go
+type Config struct {
+	rest.RestConf
+
+	UserRpc zrpc.RpcClientConf
+
+	JwtAuth struct {
+		AccessSecret string
+		// AccessExpire int64
+	}
+}
+
+```
+
+在服务核心实例对象中对userclient的引用
+
+```go
+type ServiceContext struct {
+	Config config.Config
+
+	userclient.User
+}
+
+func NewServiceContext(c config.Config) *ServiceContext {
+	return &ServiceContext{
+		Config: c,
+
+		User: userclient.NewUser(zrpc.MustNewClient(c.UserRpc)),
+	}
+}
+```
+
+### api接口
+
+在api服务的接口中使用userclient发起对userserver服务的调度，完成api请求接口的业务
+
+注册服务
+
+```go
+//apps/user/api/internal/logic/user/registerlogic.go
+func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterResp, err error) {
+	registerResp, err := l.svcCtx.User.Register(l.ctx, &user.RegisterReq{
+		Phone:    req.Phone,
+		Nickname: req.Nickname,
+		Password: req.Password,
+		Avatar:   req.Avatar,
+		Sex:      int32(req.Sex),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var res types.RegisterResp
+	copier.Copy(&res, registerResp)
+
+	return &res, nil
+}
+```
+
+登录服务
+
+```go
+//apps/user/api/internal/logic/user/loginlogic.go
+func (l *LoginLogic) Login(req *types.LoginReq) (resp *types.LoginResp, err error) {
+	
+	loginResp, err := l.svcCtx.User.Login(l.ctx, &user.LoginReq{
+		Phone:    req.Phone,
+		Password: req.Password,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var res types.LoginResp
+	copier.Copy(&res, loginResp)
+
+	return &res, nil
+}
+```
+
+用户详情服务(调用了pkg中的datactx包，所以其函数传入的参数没用到)
+
+```go
+func (l *DetailLogic) Detail(req *types.UserInfoReq) (resp *types.UserInfoResp, err error) {
+	uid := ctxdata.GetUid(l.ctx)
+
+	userInfoResp, err := l.svcCtx.User.GetUserInfo(l.ctx, &user.GetUserInfoReq{
+		Id: uid,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var res types.User
+	copier.Copy(&res, userInfoResp.User)
+
+	return &types.UserInfoResp{
+		Info: res,
+	}, nil
+}
+```
+
+### 响应输出
+
+这个不想写
