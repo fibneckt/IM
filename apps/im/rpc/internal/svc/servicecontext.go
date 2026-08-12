@@ -19,7 +19,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Config: c,
 
 		ChatLogModel:       immodels.MustChatLogModel(c.Mongo.Url, c.Mongo.Db),
-		ConversationModel:  immodels.MustNewConversationModel(c.Mongo.Url, c.Mongo.Db),
+		ConversationModel:  immodels.MustConversationModel(c.Mongo.Url, c.Mongo.Db),
 		ConversationsModel: immodels.MustConversationsModel(c.Mongo.Url, c.Mongo.Db),
 	}
 }
